@@ -182,11 +182,131 @@
 */
 
 
-/* 
+/* 类
  1 类在外定义成员函数时一定要加上类名::func, 如果仅有::说明是全局作用域的函数
  2 如果在类体中定义的成员函数中不包括循环等控制结构，C++系统会自动将它们作为内置(inline)函数来处理。如果在类外，则要用Inline,并且定义要和类的声明放在一起。
  3 C++编译系统正是这样做的，因此每个对象所占用的存储空间只是该对象的数据部分所占用的存储空间，而不包括函数代码所占用的存储空间。this指针帮助区别不同的数据
  4 类的定义和声明分开的原因: 防止常用的类多次被编译，同时接口于实现要分离，开发商把用户所需的各种类的声明按类放在不同的头文件中，同时对包含成员函数定义的源文件进行编译，得到成员函数定义的目标代码。软件商向用户提供这些头文件和类的实现的目标代码(不提供函数定义的源代码)。
+ 5 如果一个类中所有的成员都是公用的，则可以在定义对象时对数据成员进行初始化，如果类中有private或protected的成员，就不能用这种方法初始化，要用构造函数
+ 6 如果要调用默认构造函数，不要加括号，这和没有参数的函数要加括号不同
+ 7 构造函数如果有默认值，要放在声明里面，如果一个类的构造函数是全带默认值的情况，那么构造函数就不能再重载，会有二义性
+ 8 析构函数只能有一个，但可以是虚的，静态内存上的对象，比如static/全局对象，在main函数结束时释放，动态局部对象函数结束时释放，new建立的动态对象需要手动释放
+ 9 类的数组初始化时要用这样定义：
+ Student Stud[3]={ //定义对象数组
+ Student(1001,18,87),  //调用第1个元素的构造函数，为它提供3个实参
+ Student(1002,19,76),  //调用第2个元素的构造函数，为它提供3个实参
+ Student(1003,18,72)  //调用第3个元素的构造函数，为它提供3个实参
+ };
+ 
+ 10 函数指针： typedef void(*Fun)(int,int);
+              Fun pFun=NULL;
+             pFun=&min;  
+             pFun(1,2);
+   指向成员函数的指针：数据类型名 (类名::*指针变量名)(参数表列); 要加一个类名，和不同函数指针不一样的地方
+   void (Time::*p2)( ); p2=&Time::get_time;
+   调用时要 (对象.*p2)() 定义时用类名定义，因为类的函数共享一块存储区，但是调用时要用对象，并且*号不可以少，和普通的函数指针不一样
+
+   void Time::*(p2()) p2是一个返回void型指针的time类里的一个函数，本质上是一个函数
+ 
+ 11 如果一个对象被声明为常对象，则不能调用该对象的非const型的成员函数（除了由系统自动调用的隐式的构造函数和析构函数）， 但即便是成员函数后面加了一个const,它仍然可以修改mutbale的变量
+ 12 如果类有常量成员，只能通过构造函数的初始化列表对常数据成员进行初始化
+ 13 如果形参是const 指针，那么可以传入普通指针，目的在于不希望该函数修改实参，如果非const，那么不可以传入const指针，因为非const指针不可以指向const对象
+
+ 14 如果类成员中有动态分配的指针，那么要重载赋值函数
+ 15 拷贝构造 vs 赋值函数： 拷贝构造是定义一个新的对象，赋值不是， 系统默认的赋值和拷贝构造都是简单的拷贝对象中的数据，如果数据中有动态分配的要特别小心。 拷贝构造的两大用处，实参传形参，函数返回值
+ 16 Box box2(box1) == Box box2=box1, 等价，都是初始化
+ 17 静态数据成员不属于某一个对象，而是属于类的，但类的对象可以引用它。
+    静态数据成员是在所有对象之外单独开辟空间，不算在对象上。只要在类中定义了静态数据成员，即使不定义对象，也为静态数据成员分配空间，它可以被引用。静态数据成员是在程序编译时被分配空间的，到程序结束时才释放空间。静态数据成员的作用域和类一致，并不等同于全局变量。
+    静态数据成员只能在类外初始化，并且不可以放在初始化列表里面初始化。
+   非静态成员函数有this指针，而静态成员函数没有this指针。由此决定了静态成员函数不能访问本类中的非静态成员。
+ 18 普通函数声明为友元时，友元函数不属于当前类和对象，所以在定义的时候不必用类名：：func, 但是如果这个友元函数是其他类的成员函数时，就要声明，friend void Time::display(Date &);，这里的time::不可以省略
+ 19 友元类就是友元类B中的所有函数都是A类的友元函数，在A类的定义体中用以下语句声明B类为其友元类：
+     friend B; 但这并不等于A类也是B类的友元类
+ 20 模板类，
+ */
+template <class numtype> //声明一个模板，虚拟类型名为numtype
+class Compare //类模板名为Compare
+{
+    public :
+    Compare(numtype a,numtype b)
+    {
+        x=a;y=b;
+    }
+    numtype max( );
+
+    numtype min( )
+    {
+        return (x<y)?x:y;
+    }
+    private :
+    numtype x,y;
+};
+
+template <class numtype>
+numtype Compare<numtype>::max( ) //不能用compare::
+{
+    return (x>y)?x:y;
+}
+
+//调用
+Compare <int> cmp(4,7);
+
+//template <class T1,class T2>
+//class someclass
+//{…};
+//someclass<int,double> obj;
+
+/* 操作符重载
+函数类型 operator 运算符名称 (形参表列)
+{
+    对运算符的重载处理
+ }
+
+只可以重载c++已有的操作符，**就不可以重载，重载不改变操作数，优先级，结核性，不可以有默认的参数，重载函数可以是友元函数。
+ 重载函数申明为友元的动机是：普通的成员函数在调用操作符时会有this指针一并传入，这就要求操作符的做操作数，即发起这个操作的变量是该this指针的类对象，如果想让其他对象也能发起该操作，那就要用友元，因为友元函数的输入同时需要左右操作数，而没有默认的this指针。但是仍然不能满足交换率
+ 
+ << >> 就只能用友元函数来重载，因为左操作数必须是ostream类的对象，比如cout，另一方面当有连续输出时也能接的上
+ friend ostream& operator << (ostream&,Complex&);  //运算符“<<”重载为友元函数
+ 
+ ostream& operator << (ostream& output,Complex& c) //定义运算符“<<”重载函数
+ {
+    output<<"("<<c.real<<"+"<<c.imag<<"i)"<<endl;
+    return output;
+ }
+ 
+ friend istream& operator >> (istream&,Complex&); //声明重载运算符“>>”
+
+ istream& operator >> (istream& input,Complex& c)  //定义重载运算符“>>”
+ {
+ cout<<"input real part and imaginary part of complex number:";
+ input>>c.real>>c.imag;
+ return input;
+ }
+
+ 不能重载的运算符只有5个：
+ .  (成员访问运算符)
+ .*  (成员指针访问运算符)
+ ::  (域运算符)
+ sizeof  (长度运算符)
+ ?:  (条件运算符）
+ 
+ Time operator++( );//声明前置自增运算符“++”重载函数
+ Time operator++(int);//声明后置自增运算符“++”重载函数
+
+*/
+
+
+/* 转换构造函数，只有一个参数的构造函数，如果加了explicit，那么就会要求输入一定要匹配某单参数构造函数的输入要求
+ Complex(double r) {real=r;imag=0;}
+
+ */
+
+/* 类型转换函数，将某个类转换成其他类型
+ 在函数名前面不能指定函数类型，函数没有参数。其返回值的类型是由函数名中指定的类型名来确定的。类型转换函数只能作为成员函数，因为转换的主体是本类的对象。不能作为友元函数或普通函数。
+ 当需要的时候，编译系统会自动调用这些函数，建立一个无名的临时对象(或临时变量)。当执行double + complex时, complex会被系统转换为double
+ operator double( ) {return real;}
+
+ 配合重载为友元函数的操作符重载函数，可以满足交换律
  
  
  */
@@ -194,7 +314,7 @@
 
 
 /* 输入输出流
- 
+
  1 c的printf scanf是不安全的，在C++的输入输出中，编译系统对数据类型进行严格的检查，凡是类型不正确的数据都不可能通过编译。因此C++的I/O操作是类型安全(type safe)的
  2 在C++中，输入输出流被定义为类。C++的I/O库中的类称为流类(stream class)。 用流类定义的对象称为流对象。流是与内存缓冲区相对应的，或者说，缓冲区中的数据就是流。
  3 ios派生出istream, ostream, 再一起派生出iostream, 再派生出fstream针对文件I/O
@@ -217,8 +337,25 @@
     cin.getline() 用getline函数从输入流读字符时，遇到终止标志字符时结束，指针移到该终止标志字符之后，下一个getline函数将从该终止标志的下一个字符开始接着读入，如本程序运行结果所示那样。如果用cin.get函数从输入流读字符时，遇终止标志字符时停止读取，指针不向后移动，仍然停留在原位置。下一次读取时仍从该终止标志字符开始
      // getlien vs cin<<  ,是否能读空白的区别
      用“cin<<”读数据时以空白字符(包括空格、tab键、回车键)作为终止标志，而用cin.getline()读数据时连续读取一系列字符，可以包括空格。用“cin <<”可以读取C++的标准类型的各类型数据（如果经过重载，还可以用于输入自定义类型的数据），而用cin.getline()只用于输入字符型数据。
+ 9 根据文件中数据的组织形式，可分为ASCII文件和二进制文件，二进制文件又称内部格式文件或字节文件，是把内存中的数据按其在内存中的存储形式原样输出到磁盘上存放。如果在程序运行过程中有些中间结果数据暂时保存在磁盘文件中，以后又需要输入到内存的，这时用二进制文件保存是最合适的。如果是为了能显示和打印以供阅读，则应按ASCII码形式输出。高级IO是指2进制格式转换到ascii形式，内存到显示器，低级IO是不带转换的，效率更高
  
-
+ 10 文件流是以外存文件为输入输出对象的数据流，若要对磁盘文件输入输出，就必须通过文件流来实现，通过文件流对象将数据从内存输出到磁盘文件，或者通过文件流对象从磁盘文件将数据输入到内存,和标准输出的cin cout不同，文件流需要自己定义并且指定哪个磁盘作为输出。读写之前先要绑定一个文件，见代码
+ 
+ 11 ascii文件流：可以通过文件流对象和流插入运算符“<<”及流提取运算符“>>”实现对磁盘 文件的读写，如同用cin、cout和<<、>>对标准设备进行读写一样。put、get、getline 也可以用
+    ofstream outfile("f1.dat",ios::out);
+    outfile<<a[i]<<" "; 在向磁盘文件输出一个数据后，要输出一个(或几个)空格或换行符，以作为数据间的分隔，否则以后从磁盘文件读数据时，10个整数的数字连成一片无法区分。
+    ifstream infile("f1.dat",ios::in|ios::nocreate);
+    infile>>a[i];
+ 
+ 12 二进制文件流：主要用的是指针，打开文件时要用ios::binary
+ ofstream outfile("stud.dat",ios::binary)
+ outfile.write(字符指针(char *),多少字节);
+ outfile.close( );
+ ifstream infile("stud.dat",ios::binary);
+ infile.read((char*)&stud[0],sizeof(stud));
+  
+ 
+ 13 字符串流：以内存中用户定义的字符数组(字符串)为输入输出的对象，即将数据输出到内存中的字符数组，或者从字符数组(字符串)将数据读入。字符串流也称为内存流。
  */
 
 
@@ -229,6 +366,8 @@ T max(T a,T b,T c) //定义一个通用函数，用T作虚拟的类型名
     if(c>a) a=c;
     return a;
 }
+
+//i=max(i1,i2,i3); //调用模板函数，此时T被int取代
 
 // 声明
 struct Student//声明一个结构体类型Student
@@ -244,29 +383,68 @@ struct Student//声明一个结构体类型Student
 
 Student  student2{ 10002, "Wang Li", 'F', 20, 98, "Beijing"}; // 定义
 
-struct Stu//声明一个结构体类型Student
-{
-    char num;  //包括一个整型变量num
-    float name;  //包括一个字符数组name，可以容纳20个字符
-    /*char sex;  //包括一个字符变量sex
-    int age;   //包括一个整型变量age
-    float score;   //包括一个单精度型变量
-    char addr[30];  //包括一个字符数组addr，可以容纳30个字符 */
-};
+
+
+
 
 #include <iostream> //预处理
 #include <iomanip> //控制输出的样式
 using namespace std; // 用标准库
 
+
+
+class Time
+{
+public:
+    Time();
+    Time(int,int,int);
+    Time(int);
+    int hour;
+    int minute;
+    int sec;
+    void get_time( );
+};
+
+Time::Time(int a):hour(a){
+
+}
+
+
+Time::Time(int h,int m,int s)
+{
+    hour=h;
+    minute=m;
+    sec=s;
+}
+void Time::get_time( ) //声明公有成员函数
+//定义公有成员函数
+{
+    cout<<hour<<":"<<minute<<":" <<sec<<endl;
+}
+
+int min(int a=2, int b=0){
+    cout<<a<<endl;
+    return b;
+}
+
 // 函数是由()调用，所以即便没有形参，()不可以少
 int main(int argc, const char * argv[]) {
 
-    // const int *bv = new const int[9]; //这样不可以
+    char zhuan = 'a';
+    Time t = zhuan; // 调用了time(int)的转换构造函数，如果该函数是explicit，那么就要求输入是强制的int，不可以是转到的int
 
-    char namee[20];
-    cout<<sizeof(namee)<<endl;
+    Time t1(10,13,56);
+    void (Time::*p3)( )=&Time::get_time;; //指向类成员函数的指针
+    (t1.*p3)( ); // * 不可以少
+
+    typedef int (*fun)(int,int);
+    fun funct = & min;
+    (*funct)(2,3); // 可有可无的*号
+    funct(2,3); // 因为funct是指向函数的指针，所以直接调用编译器做了优化，就像字符串数组在输出的时候可以直接cout数组名
+
+    // const int *bv = new const int[9]; //这样不可以
     cout<<sizeof(Student)<<endl; // 68个字节
-    cout<<sizeof(Stu)<<endl; // 68个字节
+
 
 
 // 初始化长整形，短整型
@@ -325,6 +503,19 @@ int main(int argc, const char * argv[]) {
     o=name;
     cout<<*o<<endl;  //输出name[2]指向的字符串
     cout<<**o<<endl;
+
+
+
+
+
+
+    // 打开一个文件流
+    //ofstream outfile;  //定义ofstream类(输出文件流类)对象outfile
+    //outfile.open("f1.dat",ios::out);  //使文件流与f1.dat文件建立关联，ios::binary说明2进制文件
+    // ios::out l ios::noreplace  //打开一个新文件作为输出文件，如果文件已存在则返回打开失败的信息
+    // ios: :trunc, 打开一个文件，如果文件已存在，则删除其中全部数据，如文件不存在，则建立新文件
+    //if( !outfile.open("f1.bat", ios::app) ) 打开失败
+    //outfile.close( );  //将输出文件流所关联的磁盘文件关闭
 
     return 0; //如果程序不能正常执行，则会自动向操作系统返回一个非零值，一般为-1
 
