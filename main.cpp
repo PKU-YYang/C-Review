@@ -205,6 +205,12 @@
    指向成员函数的指针：数据类型名 (类名::*指针变量名)(参数表列); 要加一个类名，和不同函数指针不一样的地方
    void (Time::*p2)( ); p2=&Time::get_time;
    调用时要 (对象.*p2)() 定义时用类名定义，因为类的函数共享一块存储区，但是调用时要用对象，并且*号不可以少，和普通的函数指针不一样
+ 
+ 函数名和指针的关系：
+ 函数名是函数实体的代表，不是地址的代表。从函数到指针的隐式转换是函数名在表达式中的行为，就是说，这个转换仅在表达式中才会发生。由于C++规定，非静态成员函数的左值不可获得，因此非静态成员函数不存在隐式左值转换，即不存在像常规函数那样的从函数到指针的隐式转换，所以必须在非静态成员函数前使用&操作符才能获得地址。
+ 
+ 数组名和指针的关系：
+ 表达式中的数组名被编译器当作一个指向该数组第一个元素的指针。对数组名取一次地址还是数组第一个元素的地址。
 
    void Time::*(p2()) p2是一个返回void型指针的time类里的一个函数，本质上是一个函数
  
@@ -495,6 +501,10 @@ int min(int a=2, int b=0){
 // 函数是由()调用，所以即便没有形参，()不可以少
 int main(int argc, const char * argv[]) {
 
+    int as[3]={0,0,0};
+    cout<<as<<endl;  // 数组名在表达式里的作用就是数组的起始地址
+    cout<<&as[0]<<endl;
+
     day td; // base class如果有默认构造函数会自动调用
     td.Time::get_time(); // 派生类可直接调用基类函数, time::可以不加
 
@@ -506,7 +516,7 @@ int main(int argc, const char * argv[]) {
     (t1.*p3)( ); // * 不可以少
 
     typedef int (*fun)(int,int);
-    fun funct = & min;
+    fun funct = & min; // 这个取地址符号，可有可无，但是加上最好，因为成员函数时必须有
     (*funct)(2,3); // 可有可无的*号
     funct(2,3); // 因为funct是指向函数的指针，所以直接调用编译器做了优化，就像字符串数组在输出的时候可以直接cout数组名
 
@@ -587,11 +597,52 @@ int main(int argc, const char * argv[]) {
 
     return 0; //如果程序不能正常执行，则会自动向操作系统返回一个非零值，一般为-1
 
-/*
-
-
-*/
 
 
 
 }
+
+
+/*  操作系统
+ 
+ 1 systerm structure: user mode -> kernel mode -> hardware,现代操作系统 10m行
+ 
+ 2 concurrency:并发 parallel:并行。并发通常是时分的
+    multiprogramming: more then one thread at a  time (one CPU )
+
+ 3 进程execution: 从program counter里面拿计算指令，解释，执行，把结果输送到寄存器，读下一条pc指令
+    进程切换，要存放pc,register,然后再调用的时候返回
+ 
+ 4 hyperthreading:simultaneous multithreading,一个核跑两个线程
+ 5 保护线程，memory mapping： 1 memory 2 IO设备 3 CPU,use timer to switch
+ 
+    每个program的address space 里有，从底到顶： text(代码部分),data(静态数据), heap（堆，new),stack(函数迭代放的地方)。这些是virtual的，然后通过一个映射函数（每个cpu有自己的映射函数）每个code ,data, heap ,stack到不同的物理内存，这样就能保证不同的thread之间不互相干扰
+ 
+ 6 进程的定义： a single, sequential stream of exection in its own address space.
+   包含了sequential program exectuion stream + protected resources, 由PCB保存,然后context switch.
+ 
+ process state: new, ready, running（CPU）, waiting, terminated
+ 
+ multi-process: 需要新的address space，要拷贝父进程的一切，内存，IO，所以很贵。但是一个进程里面所有的threads共享一个address space(no protection). 但是每个thread要一个自己的TCB(stack,因为thread可以call自己,register)
+ 
+ 7 进程的两大核心问题：1 线程并发(time) 2 address spaces 保护 (space)
+    并发可以用cpu的时分复用，protection可以用虚拟内存到内存的不同Mapping
+
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
