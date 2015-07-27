@@ -63,7 +63,7 @@
  shared_ptr<Class> q= make_shared<Class>(arg) //safe and fast
 
  q=p; 此时q原来指向的东西就被删除了 p=nullptr, p.reset()
- class * d = p.get() 去除shared pointer性,变回普通的指针 
+ class * d = p.get() 去除shared pointer性,变回普通的指针
 
  p.use_count() 统计个数
 
@@ -352,8 +352,64 @@
  queue/priority_queue: q.empty() q.size() q.pop() q.front() q.back() q.push()
  优先队列多一个q.top()返回一个优先级最高的元素，并不删除，优先级由<定义
  
+ 16 关联容器 map
+ 本质结构：元素根据key的顺序排列,按照<号. multiset multimap 允许多个键的存在.和string一样，关联容器不允许有push_front, pop_front, push_back, pop_back, front, back
  
- 16 mutli-threading
+ * pair类型：
+ #include<utility>
+ make_pair(v1,v2)
+ pair<T1,T2> p1(v1,v2)
+ p.firstm p.second
+ 
+ * 初始化： c<T> c; c<T> c1(c2); c<T> c(b,e) 没有直接初始化一个具体元素的
+ #include<map>
+ map<string, int> word_count
+ map<Key,Value>::key_type 键的类型，const类型
+ map<Key, Value>::mapped_type 值的类型
+ map<Key, Value>::value_type 是pair<Key, Value>类型
+ 
+ * 寻址： 慎用，如果键不存在，会初始化一个然后赋值0
+ 下标表示法 word_count["anna"]=1 , anna若没有，则创建新的元素，并初始化值为0，这点和vector不同，如果键存在，那么覆盖它的值
+ 指针法：返回一个value_type类型，是一个pair
+ 
+ * 插入:以一个pair为操作元素
+ m.insert(map<v1,v2>::value_type("anna",1)) 以value_type来
+ m.insert(make_pair("anna",1))
+ 
+ !!注意：insert如果建已经存在，那么值不会覆盖，和下标法相比，Insert法少一步初始化
+ insert的返回值：
+ pair<map<string,int>::iterator, bool> ret = m.insert(make_pair(m,1)) 若已存在，bool返回false, 迭代器始终指向键为m的map元素，可以用.second访问他的值
+ 
+ * 寻找：
+ m.count(k)  对于set就是0/1,>0表示存在
+ m.find(k)  map<K,V>::iterator it=m.find("anna"), it!=m.end()
+ 
+ * 删除：
+ m.erase(key) 返回size_type,表示删除的个数
+ m.erase(p) 返回void
+ 
+ * 遍历输出：输出时是按键值的升序排列的
+
+ 
+ 17 关联容器set:只有键，没有值
+ 不支持下标操作，value_type就是key_type,没有mapped_type
+ 
+ set<int> iset(b,e) be可以是其他容器的迭代器，这样一进去，重复的元素就没了
+ 
+ set<string> set1
+ set1.insert("the") // 同样会返回一个迭代器+一个bool
+ set1.find("the") 没有就指向set1.end()
+ set1.count(1)
+ 
+ 不可以通过iterator来直接修改set的元素，因为是键值是const的
+
+ * multiset multimap 都不支持下标运算，因为一个键对应多个值.
+  在内存里，同一个键的值连续存放，所以要输出键的值要用两轮，1是 .count() 
+ 2是find第一个元素的迭代器，然后用count次数输出
+ 
+
+ 
+ 18 mutli-threading
  
  std::thread t1(function pointer)
  
@@ -399,6 +455,9 @@
 #include <tuple>
 #include <functional>
 #include <memory>
+#include <map>
+#include <utility>
+
 
 using namespace std;
 
@@ -572,6 +631,26 @@ int main(){
     A1 *qn = new A1(4);
     delete pn;
     delete qn;
+
+    // 检测map的inset是否会覆盖
+    map<string , int> pm;
+    pm["anna"]=123;
+    pm.insert(make_pair("anna", 10));
+    pm["anna"]=1233;
+    cout<<pm["anna"]<<endl;
+
+
+    // 测试虚析构函数是否会调用基类的析构函数,结果是会
+    struct father{
+        virtual ~father(){cout<<"father"<<endl;}
+    };
+
+    struct son: public father{
+        ~son(){cout<<"son"<<endl;}
+    };
+
+    father *pf = new son();
+    delete pf;
 
     return 0;
 
