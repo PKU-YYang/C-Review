@@ -53,13 +53,23 @@
  
  3 智能指针
  智能指针实现了在C++下的自动内存管理，一个地址不能同时被两个或两个以上智能指针维护
+ 
+ #include<memory>
+
+ shared_ptr<Class> p(new Class()) // 这里面分别开辟了两个指针，不安全
+
+ shared_ptr<Class> p3(new class[3],[](class *p){delete[] p;}); //如果p3指向一个数组，那么一定要初始化释放的方法，否则就释放第一个class对象
+
+ shared_ptr<Class> q= make_shared<Class>(arg) //safe and fast
+
+ q=p; 此时q原来指向的东西就被删除了 p=nullptr, p.reset()
+ class * d = p.get() 去除shared pointer性,变回普通的指针 
+
+ p.use_count() 统计个数
 
  class foo: public std::enable_shared_from_this<foo> {
  public:
- 
  typedef std::shared_ptr<foo> type_ptr;
-
-
  type_ptr what_are_you_want_to_do() {
      return shared_from_this();
  }
@@ -153,10 +163,47 @@
  std::mt19937 engine; // 随机数引擎
  int random = distribution (engine);  // 产生随机数
  
- 11 C++11 增加了一个新的非常数引用（reference）类型，称为右值引用（R-value reference）
-    在返回对象时，省去了临时对象的拷贝构造和析构，在没有编译器临时对象直接更名初始化的情况下节省了效率。
+ 11 C++11 增加了右值引用（R-value reference)
+ 
+  作用： moving semantics + perfect forwarding
     
-    函数返回class &&, return std::move()
+   * 左值和右值
+    左值和右值：左值和内存打交道，非左值就是右值。变量是左值，表达式或函数表达值是右值。左值可以在表达式中转换成右值。函数如果返回一个引用，那么它也可以是左值。
+    int &r = 40; 是错误的，因为40是一个右值，无法赋给左值引用
+    int&& r= 40; r是右值引用，而40是右值
+
+    * moving semantics:
+
+    在返回对象时，或者传入形参时，如果它是右值，会拷贝构造出一个临时对象，果能直接引用这个右值（T &&），那样省去了临时对象的拷贝构造和析构，在没有编译器临时对象直接更名初始化的情况下节省了效率。
+    
+    std::move用法： 将一个对象转换成右值. 一个对象std::move赋值给另一个对象时，如果接收的是普通的class,那么会调用move constrcutor（因为已经是一个右值了）, 如果没有，那么就调用拷贝构造函数，区别是拷贝构造函数可以实现一个深拷贝，move constructor可以实现一个浅拷贝。如果接收对象是class &&, 同时外面在初始化一对象，而不是赋值构造,那么直接返回该右值引用，什么都不会调用。比如，函数返回class &&, A a(); return std::move(a)就可以节约 a到临时对象的过程。但注意，move constructor一旦有了就会覆盖copy构造函数。
+    
+    总结：传形参用const class &, 如果形参不是引用，那么实参用std::move + move constructor。如果形参是 class &, 实参是 class(),那是不可以的，因为class()是右值，必须用class&& 右值引用。
+         函数返回局部构建的对象并且外面在初始化新对象时，可以用std::move返回，外面用class &&接。
+    
+     * perfect forwarding:
+   
+     template<typename T>
+     void relay(T arg){
+            foo(arg); 这个arg的传入就叫forwarding
+      }
+     
+     目标：
+     relay(a) 调用拷贝构造函数
+     relay(class()) 调用move构造函数
+    
+     解：
+    template<typename T>
+    void relay(T&& arg){ 当T是typename时，&&就是universal ref,左值右值逗可以用
+        foo ( std::forward<T>(arg) )
+ }
+ 
+ 
+    std::forward<T>(arg): 把arg换成T&&, std::move(arg) 把arg变成rvalue
+ 
+ 
+ 
+
 
 12 临时对象的返回值优化问题：
  临时对象是指函数返回对象时把return的那个对象拷贝给的那个临时对象，和匿名对象要区别对待，匿名对象是指直接用类名创建的对象。
@@ -351,6 +398,7 @@
 #include <algorithm>
 #include <tuple>
 #include <functional>
+#include <memory>
 
 using namespace std;
 
@@ -360,6 +408,7 @@ public:
     foo(){ puts("directly"); }
     foo(const foo&){ puts("copy"); }
     foo(int i){ puts("int"); m = i; }
+    foo(foo&& ){puts("i am move");} // move构造函数给std::move
     ~foo(){puts("xigou");}
 
     const foo & operator=(const foo&r){puts("this is =");
@@ -391,6 +440,15 @@ foo&& foo_func2(int flag)
 }
 
 
+void use_foo(foo){cout<<"i am using foo_value"<<endl;}
+void use_foo_lvalue(foo&){cout<<"i am using foo_lvalue"<<endl;}
+void use_foo_rvalue(foo&&){cout<<"i am using foo_rvalue"<<endl;} // 形参是&&的，可以传入右值。
+
+template<typename T>
+void temp_use_foo(T&& t){
+    use_foo(std::forward<T>(t));
+}
+
 // 模板类的定义不能在main函数里面
 template<typename LHS,typename RHS>
 auto AddingFunc(const LHS &lhs, const RHS &rhs) -> decltype(lhs+rhs){return lhs + rhs;}
@@ -419,12 +477,35 @@ int main(){
     //t1.detach(); // t1 will run freely on its own --deamon process, main thread 不等它
     cout<<std::thread::hardware_concurrency()<<endl;
 
-
+    // 隐士类型转换必须为const
     char buffer[]="hai";
     clear(buffer);  // 如果函数的形参不是const，那就不能进行隐士转换,因为隐士转换完会给一个临时对象，该临时对象在函数结束时被释放，如果改变了这个临时对象也是对外面的没有影响。
     cout<<buffer<<endl;
 
+    // 右值引用，形参传入
+    foo f1;
+    cout<<"start moving"<<endl;
+    use_foo(f1); // 拷贝构造给形参
+    use_foo(std::move(f1)); //调用move构造函数，没有就调用拷贝构造
+    use_foo(foo()); // copy构造给形参，被编译器优化
 
+    use_foo_lvalue(f1); // 函数的输入是一个左值引用
+    //use_foo_lvalue(foo()); //foo()是一个右值，无法直接给foo &, 因为是左值引用，尽管可以给const foo&
+    use_foo_rvalue(foo()); // 函数的输入是一个右值引用
+    //use_foo_rvalue(f1); 错误，f1是一个左值，只可以传给左值引用
+    cout<<"TEMP"<<endl;
+    temp_use_foo(f1); //copy
+    temp_use_foo(foo()); // move constuctor
+
+
+    // 右值引用, 函数返回
+
+    foo rr1 = foo_func1(0); // copy+析构
+    cout<<"rvalue_start"<<endl;
+    foo&& rr2 = foo_func2(0); // 无，右值引用节约一次拷贝一次析构
+    cout<<"rvalue_end"<<endl;
+    foo ttf;
+    ttf = foo_func1(0); // 如果是非初始化状态，那么拷贝构造函数不可省略，因为调用的是赋值函数。
 
 
     //decltype
@@ -444,15 +525,9 @@ int main(){
     std::result_of<foo2(char, int)>::type d1 = 'a'; // 推断出foo2这个函数返回的是char
     cout<<d1<<endl;
 
-    // 右值引用
-    foo rr1 = foo_func1(0); // copy+析构
-    foo&& rr2 = foo_func2(0); // 无，右值引用节约一次拷贝一次析构
 
 
-    foo ttf;
-    ttf = foo_func1(0); // 如果是非初始化状态，那么拷贝构造函数不可省略，因为调用的是赋值函数。
-
-
+    // swap以后的iterator
     vector<string> c(10,"hehe"),d(10,"haha");
     vector<string>::iterator tc=c.begin();
     cout<<*tc<<endl;
@@ -472,6 +547,31 @@ int main(){
         cout<<e<<endl;
     }
 
+    //vector也可以new
+    vector<int> *p = new vector<int>(1);
+    p->push_back(100);
+    p->push_back(100);
+    cout<<p->back()<<endl;
+    delete p;
+
+    struct A1{
+        int m;
+        A1(int n):m(n){cout<<"build"<<m<<endl;}
+        ~A1(){cout<<"xigou"<<m<<endl;}
+    };
+
+
+    //测试智能指针析构顺序，智能指针在stack上创建,无论如何创建
+    shared_ptr<A1> ps = make_shared<A1>(1);
+    shared_ptr<A1> qs = make_shared<A1>(2);
+
+    shared_ptr<A1> pss(new A1(5));
+    shared_ptr<A1> qss(new A1(6));
+
+    A1 *pn = new A1(3);
+    A1 *qn = new A1(4);
+    delete pn;
+    delete qn;
 
     return 0;
 
