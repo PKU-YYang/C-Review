@@ -262,6 +262,21 @@ Compare <int> cmp(4,7);
 //{…};
 //someclass<int,double> obj;
 
+
+//21  a rult of thumb
+
+/*If your class needs any of
+
+a copy constructor,
+an assignment operator,
+or a destructor,
+
+ defined explictly, then it is likely to need all three of them.
+*/
+
+
+
+
 /* 操作符重载
 函数类型 operator 运算符名称 (形参表列)
 {
@@ -499,7 +514,7 @@ int min(int a=2, int b=0){
 }
 
 // 函数是由()调用，所以即便没有形参，()不可以少
-int main(int argc, const char * argv[]) {
+int wanwan(int argc, const char * argv[]) {
 
     int ast = 1;
     cout<<to_string(ast)+".csv"<<endl;

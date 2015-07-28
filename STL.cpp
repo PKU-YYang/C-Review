@@ -176,7 +176,7 @@
 
     在返回对象时，或者传入形参时，如果它是右值，会拷贝构造出一个临时对象，果能直接引用这个右值（T &&），那样省去了临时对象的拷贝构造和析构，在没有编译器临时对象直接更名初始化的情况下节省了效率。
     
-    std::move用法： 将一个对象转换成右值. 一个对象std::move赋值给另一个对象时，如果接收的是普通的class,那么会调用move constrcutor（因为已经是一个右值了）, 如果没有，那么就调用拷贝构造函数，区别是拷贝构造函数可以实现一个深拷贝，move constructor可以实现一个浅拷贝。如果接收对象是class &&, 同时外面在初始化一对象，而不是赋值构造,那么直接返回该右值引用，什么都不会调用。比如，函数返回class &&, A a(); return std::move(a)就可以节约 a到临时对象的过程。但注意，move constructor一旦有了就会覆盖copy构造函数。
+    std::move用法： 将一个对象转换成右值,然后释放掉被move的元素. 一个对象std::move赋值给另一个对象时，如果接收的是普通的class,那么会调用move constrcutor（因为已经是一个右值了）, 如果没有，那么就调用拷贝构造函数，区别是拷贝构造函数可以实现一个深拷贝，move constructor可以实现一个浅拷贝。如果接收对象是class &&, 同时外面在初始化一对象，而不是赋值构造,那么直接返回该右值引用，什么都不会调用。比如，函数返回class &&, A a(); return std::move(a)就可以节约 a到临时对象的过程。但注意，move constructor一旦有了就会覆盖copy构造函数。
     
     总结：传形参用const class &, 如果形参不是引用，那么实参用std::move + move constructor。如果形参是 class &, 实参是 class(),那是不可以的，因为class()是右值，必须用class&& 右值引用。
          函数返回局部构建的对象并且外面在初始化新对象时，可以用std::move返回，外面用class &&接。
@@ -352,6 +352,8 @@
  queue/priority_queue: q.empty() q.size() q.pop() q.front() q.back() q.push()
  优先队列多一个q.top()返回一个优先级最高的元素，并不删除，优先级由<定义
  
+ *适配器的一个特点：pop，pop_back()都不会返回值，因为如果返回的值在拷贝的时候出了问题，那么原先的结构将无法还原。所以干脆就不返回值。
+
  16 关联容器 map
  本质结构：元素根据key的顺序排列,按照<号. multiset multimap 允许多个键的存在.和string一样，关联容器不允许有push_front, pop_front, push_back, pop_back, front, back
  
@@ -413,31 +415,29 @@
  
  std::thread t1(function pointer)
  
- 如果是pointer函数对象，那么函数名外面要括号，否则就会被误认为是传入一个参数，返回一个线程
-
- class fctot(){
+ * 如果是pointer函数对象，那么函数名外面要括号，否则就会被误认为是传入一个参数，返回一个线程
+ class fctot{
  public: void operator()(string& s){cout<<s<<endl;}
- }
+ };
  std::thread( (fctot()),s )   fctot()外面的括号不可以省略,参数也是放在fctot外面，给thread的形参一定是值传递，即便形参是string&,所以函数内对s的改变不会到函数外。
      如果一定要用传引用，那么要用 std::ref(s), std::move(s)
 
- t1.join()  main thread等它完成
+ * t1.join()  main thread等它完成
  t1.detach() main thread不等它完成
- 
  join和detach不可以同时都选
  if(t1.joinable){t1.join()}
  
- 线程不可以直接赋值，必须用move
+ * 线程不可以直接赋值，必须用move
  std::thread t2=std::move(t1)
  t2.join()
  
- thread独特的id
+ * thread独特的id
  std::this_thread::get_id()
  t1.get_id()
  
- std::thread::hardware_concurrency() 得出最大的可以并行的thread个数，再大就低效了
+ * std::thread::hardware_concurrency() 得出最大的可以并行的thread个数，再大就低效了
  
- 如果父进程异常退出，那么子进程也会被destory,这时就要用try-catch
+ * 如果父进程异常退出，那么子进程也会被destory,这时就要用try-catch
  try{
     father thread
  }catch(...){
@@ -445,6 +445,122 @@
     throw;
  }
 
+ 
+ * race condition & mutex
+ 
+ 多个线程争夺一个资源时cout，会互相竞争，此时要用mutex.mutex可以让一个线程在使用的时候另外一个线程等
+ 
+ #inculde<mutex>
+ std::mutex mu;
+ void shared_print(string msg, int id){
+       std::lock_guard<std::mutex> guard(mu); 如果cout抛出一个异常那么会自动释放这个thread
+       cout<<msg<<i<<endl;
+}
+
+ 但是cout是一个全局函数，并不是线程安全的，所以继续改进的办法是，构造一个class，把要用的函数声明为这个类的方法，这样每次调用这个函数时就要用不同的对象，继而保护了这个全局函数不被其他的影响。但这个被保护的函数不能再作为其他函数的输入或者输出
+ 
+ class logdile{
+    std:: mutex m_mutex;
+    ofstream f;
+ 
+ public:
+    logfile(){f.open("log.txt")}
+    void shared_print (string id, int value){
+        !!!std::lock_guard<mutex> locker(m_mutex);!!!
+        f<<print log<<endl;
+ }};
+ 
+ logfile log;
+ log.shared_print(msg, i); 这里的就是安全的
+
+ * unique_lock vs lock_guard: more flexibility
+ 
+ std::unique_lock<mutex> locker(m_mutex,std::defer_lock);
+ ...
+ locker.lock()
+ lokcer.unlock()
+ ...
+ lock是不可以赋值的，只能std::move(locker)
+ 
+ * 如果每次仅仅想让一个线程用一个资源，比方说读取资源,
+ std::once_flag  _flag
+ std::call_once(_flag,[&](){f.open(".txt");}) // lambda表达式
+
+ * 重要技能1：thread相互提醒: condifiton value
+ thread sleep
+ std::this_thread::sleep_for(chrono::seconds(1));
+ std::this_thread::sleep_until(tp);
+
+ std::condition_variable cond;
+ 如果线程2里在等线程1，那么在线程1完成结果并unlock以后可以发送一个cond.notify_one(),然后线程2里面可以等cond.wait(locker).线程2会unlock locker然后sleep, 如果接到通知，那么立马Lock locker，然后执行下文。
+ 如果很多线程在等，那么线程1应该用cond.notify_all()
+
+ * 重要技能2：thread间通讯：future, promise
+   //开辟了一个子thread结果返回给父thread
+   stf::future<int> fu = std::async(std::launch::async,func,实参);
+   std::async效果和std::thread一样，都是开辟一个新的线程
+   x=fu.get();
+
+   //父thread传数给子thread，父thread用Promise传给子thread的future
+   std::promise<int> p;
+   std::future<int> f = p.get_future();
+   //std::shared_future<int> sf = f.share(); sf是可以提供给多个线程的
+   f随后以std::ref(f)传入子thread fu，这里要特别注意传入的不是promise，而是future
+   p.set_value(4)
+   x= fu.get()
+ 
+ * packaged_task: 可以打包一个函数给thread
+ 
+  std::deque<std::packaged_task<int> > task_q;
+  
+  void thread_1(){
+    std::packaged_task<int(int)> t;
+      {
+        std::lock_guard<std::mutex> locker(mu);
+        cond.wait(locker,[](){return !task_q.empty();})
+        等待父thread把task压入栈，并且栈非空，执行
+        t = std::move(task_q.front());
+      }
+    t();
+ }
+  
+ MAIN:
+  std::thread t1(thread_t1); // run task
+  std::packaged_task<int(int)> t(fact); fact返回一个int，输入一个int，如果想传入参数要用std::bind,这点和thread不一样,返回值要用int x = t.get_future().get();
+  std::future<int> fu = t.get_future();
+  
+  {
+    std::lock_guard<std::mutex> locker(mu);
+    task_q.push_back(t);
+  }
+  
+  cond.notify_one();
+  fu.get()
+
+ * 总结：
+  promise: get_future()
+  packaged_task: get_future()
+  async(): returns a future
+
+ * Deadlock
+ 如果一个函数里lock了多个mutex，可能会死锁,解决方法：
+ std::lock(_mu1,_mu2)
+ std::lock_guard<mutex> locker(m_mutex,std::adpot_lock);
+ 或者,所有的mutex都按一种顺序lock
+ 
+ * 函数对象，函数指针的调用,callable
+ class A(){
+ public:
+    int operator()(int N){return 0;}
+    void f(int x , char c){}
+ };
+ A a;
+ std::thread t1(std::ref(a),6) // a(6) in a thread
+ std::thread t2(std::move(A()),6)
+ std::thread t4([](int x){return x*x;},6) // lambda
+ std::thread t6(&A::f,a,8,'W') // first copy a, then a.f(8,w), use &a, then no copy
+ std::thread t7(&A::f,std::move(a),8,'W') // 用右值引用，也不会copy，但是a就消失了
+ std::bind(), std::async(), std::call_once()都可以一样调用
  */
 
 
@@ -457,6 +573,9 @@
 #include <memory>
 #include <map>
 #include <utility>
+#include <stack>
+#include <boost/lexical_cast.hpp>
+
 
 
 using namespace std;
@@ -620,7 +739,7 @@ int main(){
     };
 
 
-    //测试智能指针析构顺序，智能指针在stack上创建,无论如何创建
+    //测试智能指针析构顺序，智能指针在stack上创建,无论如何创建,析构时按栈的顺序
     shared_ptr<A1> ps = make_shared<A1>(1);
     shared_ptr<A1> qs = make_shared<A1>(2);
 
@@ -651,6 +770,19 @@ int main(){
 
     father *pf = new son();
     delete pf;
+
+
+    // 测试pop是否返回值,结果是不返回,因为不是exception safe的
+    stack<int, vector<int> > pstack;
+    pstack.push(112);
+    pstack.pop();
+
+
+    // 测试线程的函数传入方法，结果未知
+    class fctot{
+    public: void operator()(string& s){cout<<s<<endl;}
+    };
+    //std::thread( (fctot()),"hehe" );
 
     return 0;
 
