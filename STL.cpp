@@ -52,7 +52,7 @@
  _MSC_VER is defined when compiling with the Microsoft compiler so that it "evaluates to the major and minor number components of the compiler's version number"
  
  3 智能指针
- 智能指针实现了在C++下的自动内存管理，一个地址不能同时被两个或两个以上智能指针维护
+ 智能指针实现了在C++下的自动内存管理，一个地址不能同时被两个或两个以上智能指针维护。智能指针本质上是用栈上的东西控制堆上的内存。
  
  #include<memory>
 
@@ -62,7 +62,7 @@
 
  shared_ptr<Class> q= make_shared<Class>(arg) //safe and fast
 
- q=p; 此时q原来指向的东西就被删除了 p=nullptr, p.reset()
+ q=p; 转换指向时q原来指向的东西就被删除了 p=nullptr, p.reset()
  class * d = p.get() 去除shared pointer性,变回普通的指针
 
  p.use_count() 统计个数
@@ -74,6 +74,22 @@
      return shared_from_this();
  }
  };
+ 
+ * weak_ptr: 两个shared pointer如果互相指对方，那么就无法自动析构，会memory leak. weak pointer的本质就是指向智能指针指向的对象，但是计数不计算进去。本质上就和普通的指针一样，但是不能被显式的delete,也不能用->指向函数，得用weak_ptr.locl()->func(),并且之前得主动检查weak_ptr.expired(). weak_ptr.use_count()可以返回shared的次数。
+ 
+ * unique_ptr: 独有的，不可以share,也会在结束时自动析构,exception-safe pointer,再创建unique_ptr以后如果有错，那也会自己析构。
+   unique_ptr<Dog> pd(new Dog("hehe"));
+   pd.release(); // 放弃拥有权，返回一个普通指针（shared_ptr的get函数不放弃拥有权）
+ 
+  优点：当unique_ptr可以直接析构掉一个数组，不像shared_ptr要点名指向
+  unique_ptr<Dog[]> dogs(new Dog[3]);
+  shared_ptr<Dog> pdd(new Dog[3], [](Dog *p){delete [] p;});
+ 
+  1 ptr指针指向其他地方会导致原来指向的东西被析构
+  2 std::move会导致被move的对象变成空白
+ 
+ 
+
  
  4 bind函数
  可用于绑定函数、成员函数、函数对象、成员变量
@@ -734,17 +750,22 @@ int main(){
 
     struct A1{
         int m;
+        A1(){}
         A1(int n):m(n){cout<<"build"<<m<<endl;}
         ~A1(){cout<<"xigou"<<m<<endl;}
     };
 
 
     //测试智能指针析构顺序，智能指针在stack上创建,无论如何创建,析构时按栈的顺序
-    shared_ptr<A1> ps = make_shared<A1>(1);
+    // 智能指针的本质是，用栈生命周期上构建的指针去控制堆上的对象
+    shared_ptr<A1> ps = make_shared<A1>(151);
     shared_ptr<A1> qs = make_shared<A1>(2);
 
+    ps = make_shared<A1>(100); // 会析构掉之前指向的151
     shared_ptr<A1> pss(new A1(5));
-    shared_ptr<A1> qss(new A1(6));
+    shared_ptr<A1> qss(new A1(6)); // 分别调用两次内存分配，new一次，只能指针一次
+    shared_ptr<A1> pshuzu(new A1[3],[](A1 *p){delete [] p;}); //指向数组时，析构函数的定义不可少。
+    cout<<"shuzu:"<<pshuzu.use_count()<<endl; //1
 
     A1 *pn = new A1(3);
     A1 *qn = new A1(4);
