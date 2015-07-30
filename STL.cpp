@@ -514,12 +514,60 @@
  string/vector/deque, int *p = a[4]: 提供随机访问迭代器
  sort是需要提供随机访问迭代器的，所以list就不可以作为输入，list的输入要用list.sort()调用自己的一个方法，特别注意list的大多数方法会直接修改本身，这个和泛型算法不一样。
 
-
-
-
+ 19 模板与泛型编程
+  函数体相同，形参类型不同 -> 模板函数,编译时才会用实参来初始化形参
+  函数模板+inline:
+  template<typename T> inline T min(const T&, const T&)
+  template<class T> class queue{ T& front();} queue在定义类体本身时不需要再用queue<T>,直接用queue,但是如果嵌套了一个模板成员，并且该成员也用了T，那么这个类成员的<T>就不可以省略。
+ 
+ 类的模板成员函数 vs 模板函数：
+  类的模板成员函数在被调用的时候实例化，那个时候所有的type由类指定，实例化以后可以对输入的参数进行类型转换。而普通的模板函数就不可以，单单实例化的过程不可以有类型转换。
  
 
- 19 mutli-threading
+  typename和class本质上是一个东西
+  T有4大作用：1 指定返回类型 2 函数形参（尽量用const &） 3 函数体内变量声明(尽量用<不用>号) 4 强制类型转换
+
+  typedef如果出现在template外面，那么typename会屏蔽它，如果出现在里面会报错。
+  
+  类型名 vs 数据成员
+  如果模板定义的里面出现一个类型名，那么就要区分它是一个类型而不是一个数据成员的名字，typename Pram::size_type p, 就说明size_type是一个类型，而不是一个数据成员叫size_type
+
+  非类型形参：定义函数时还需要的参数，实例化时必须是常量身份出现
+  template<class T, size_t N> void f (T (&parm)[N]){} 这里的N不可以少！ 如果数组是用引用方式传进一个函数，那么必须指定它的大小，不指定大小不可以直接传数组名（const int * 接不了 int a[10]的a），这里这个方法是可以任意改变传入数组的大小的一个方法。
+ 
+ *实例化
+  类的实例化：每次产生一个独立的类类型。class<int> class<double>相互独立。对于类中嵌套定义模板成员函数的，只有在调用该成员函数时才会实例化。
+  函数的实例化：模板实参推断，根据不同的实参推断调用哪个版本. 函数实例化不会进行类型转换。 但有两个特例： 1 如果模板里形参是const &,或者一个对象本身，那么实参是否为const可以忽略 2 如果传入的是数组名或者是函数，那么会转换成为指针处理，如果形参是引用，那会直接传数组的引用，此时会检查两个形参的大小是否相等。
+  
+    template <typename T> int compare(const T1&, const T2&)
+    
+    1）compare(1,2) //运用这个实参自动匹配的情况必须保证从最右边开始匹配，也就是说2对应t2,1对应t1, 否则必须compare<int,int>(1,2)显示调用
+    2）int (*p1)(const int &, const int &) = compare
+     作为其他函数的形参从而实例化，compare初始化p1, p1同时实例化compare, 因为typename被确立
+    3）void func(int(*)(const string&, const string&))
+    func(compare) 实例化，因为typename又确定下来了，是string
+ 
+ * template的声明如果放在.h中，那么也一定要include有具体代码的.cpp文件编译器需要同时看到两个文件。cpp中成员函数的定义要加类名<typename>:
+    template <class T> void queue<T>::pop(){}
+
+ * 模板友元的声明：
+   template <class T> class Bar{
+        template <class T> friend class foo;
+        template <class T> friend void func(const T&)
+ }
+   模板类foo和模板函数func的任意一个实力都可以访问bar的私有元素
+
+   template <class T> class foo;
+   template <class T> void func(const T&);
+   template <class T> class Bar{
+     friend class foo<T>;
+     friend void func<T>(const T&)
+ }
+   foo的typename是T的实例，func的typename是T的实例才可以做bar的友元。注意两个前向声明不可以少。
+ 
+ * static: 每个模板的实例们共享一个static,static不在模板层面共享
+
+ 20 mutli-threading
  
  std::thread t1(function pointer)
  
@@ -753,6 +801,13 @@ void function_1(){
 
 }
 
+// 函数形参是对一个数组的引用,必须指明大小，这里的1不可以少
+
+void shuzuf(int (&a)[1]){
+    cout<<a[0]<<endl;
+}
+
+
 
 //vector<int&> yinyong;  严重不可以
 
@@ -914,6 +969,10 @@ int main(){
     // find_first_of的本质是从输入的1的迭代器开始++到1的末尾，这期间若任何一次出现过2里面的任何一个元素，有就直接返回出现的首地址。否则返回1的末尾。
     // 在这个例子里面，当从a开始迭代时，会碰到末尾的c，也算找到，所以一共出现4此。
 
+
+    // shuzuf这个函数形参是对数组的一个引用， 必须指明大小 int(&a)[1]
+    int at[]={1};
+    shuzuf(at);
     return 0;
 
 
