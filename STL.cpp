@@ -426,8 +426,100 @@
  2是find第一个元素的迭代器，然后用count次数输出
  
 
+ 18 算法
  
- 18 mutli-threading
+ 本质：通过遍历由两个迭代器标记的一段元素来实现其功能。算法不直接修改容器的大小，添加删除必须靠容器本身的操作。算法会规定输入的迭代器必须支持什么操作，只要迭代器提供这个层次的操作，该算法就可以起作用。
+ 
+ * 查找 find
+ vector<int>::const_iterator result = find(vec.begin(),vec.end(),value)  从beign开始寻找这个value,找到就返回那个迭代器,找不到就返回第二个参数。
+ int * result = find(a,a+6,value)
+
+ include<algorithm>
+ include<numeric>
+ 
+ * 累加accumulate
+ int sum = accumulate(vec.begin(), vec.end(), 1)
+ 累加到第三个实参的类型，第三个类型是初值
+ 字符+数字
+ string sum=accumulate(v.begin(), v.end(), string(""))
+
+ * find_first_of(iter1.begin(), iter1.end(),
+                 iter2.begin(), iter2.end()),返回1里面出现2中任意一个元素的地址。
+ 
+ * fill： 写入算法。
+   fill(begin(),end(),value) 写入的是value的副本
+   fill_n(begin(),10,0) 不可以在空容器上直接写，严重的错误！！！
+ 
+ * back_inserter: 迭代器适配器，用一个对象作为实参，生成一个适应实参行为的新对象，例如，输入一个vector，返回一个push_back
+   #include<iterator>
+   vector<int> vec;
+   fill_n(back_iterator(vec),10,0); 相当于push_back，这样就不用担心没有空间的问题，因为用的是push_back
+
+ * copy拷贝，带_copy的算法都是不改变原先容器内的元素的
+   copy(ilist.begin(),ilist.end(),back_inserter(ivec))
+   = vector<int> invec(ilist.begin(), ilist.end())
+ 
+ * replace(ilist.begin(),ilist.end(),0,42) 替换掉原序列里面的0,换成42
+   replace_copy(ilist.begin(),ilist.end(),
+                back_inserter(vec),0,42) 替换好以后存到vec里面
+ 
+ 
+ * 去除重复单词：
+   sort(words.begin(),words.end()) words本身排序
+   auto it = unique(words.begin(), words.end()) 删除相邻重复元素，返回指向重复元素的指针
+   words.erase(it, words.end()) 删除还是要靠容器本身的操作，算法不可以完成
+ 
+   stable_sort: 保留相等元素的原始开始位置
+ 
+ * 谓词：按自己定义的检测函数.名字后面带_if的都是支持谓词的
+ 
+    [&](const string &s1, const string &s2)->bool{return s1.size()<s2.size()}
+    stable_sort(words.begin(),words.end(), lamba)
+    
+    bool GT6(const string &s){return s.size()>=6}
+    vector<string>::size_type q = count_if(words.begin(),words.end(),GT6) 返回使GT6条件成立的元素个数
+ 
+ * 迭代器综述： #include<iterator>
+   
+ 1 插入迭代器, 于容器对象绑定，实现插入。
+   back_inserter, 要求实现push_back,
+   front_inserter, 要求容器必须有Push_front, 比如vector就不行。
+   inserter,多一个参数，需要指明容器的位置，在那个位置以前插入 inserter(vecotr,it)
+ 
+   front_inserter(vec) vs inserter(vec,vec.begin()): 前者是整个一块插入到当前vec的前端，插入的对象是一个整体，后者每次插完一个元素以后，首尾元素就会更新,因为vec,begin()更新了，所以是一个一个插，不当做一个整体。
+
+ 2 Iostream迭代器，类模板，必须绑定定义了输入操作符的类型
+   istream_iterator:读取输入流
+   ostream_iterator：读取输出流
+   初始化：
+   istream_iterator<int> cin_it(cin);  从cin读入ints，定义了>>的用户类也可以，还可以直接用cin_it->调用对象成员
+   istream_iterator<int> endof; 不给实参就是超出末端迭代器
+   vector<int> vec(cin_it, endof) 把读入的int放到vector里面
+ 
+   ofstream outfile;
+   ostream_iterator<Sale_item> output(outfile,",") 写到outfile上，用分隔符，
+   ofstream_iterator out_iter(cout, "\n") 直接输出到屏幕上
+   unique_copy(vec.begin(),vec.end(),out_iter) 调用算法并且直接输出到屏幕
+
+ 3 反向迭代器:
+   reverse_iterator
+   rbegin() rend() 分别指向最后一个元素和第一个元素之前一个元素，++ 表示往前
+   sort(vec.rbegin(),vec.rend()) 逆序输出，最大的在前面，流迭代器不可以创建反向迭代器
+   .base()会让反向迭代器退一位，然后正序输出，此时要用.end()记录结尾。
+ 
+ 4 const迭代器
+   对于Begin()和end(),不允许一端加const而另一端不加const。
+ 
+ map/set/list: 提供双向迭代器
+ string/vector/deque, int *p = a[4]: 提供随机访问迭代器
+ sort是需要提供随机访问迭代器的，所以list就不可以作为输入，list的输入要用list.sort()调用自己的一个方法，特别注意list的大多数方法会直接修改本身，这个和泛型算法不一样。
+
+
+
+
+ 
+
+ 19 mutli-threading
  
  std::thread t1(function pointer)
  
@@ -584,6 +676,7 @@
 #include <regex>
 #include <thread>
 #include <algorithm>
+#include <numeric>
 #include <tuple>
 #include <functional>
 #include <memory>
@@ -804,6 +897,22 @@ int main(){
     public: void operator()(string& s){cout<<s<<endl;}
     };
     //std::thread( (fctot()),"hehe" );
+
+    // 测试find_first_of
+    cout<<"string:find_first_of"<<endl;
+    string string1("cdac");
+    string string2("cd");
+    size_t cnt=0;
+    auto itt = string1.begin(); // itt要在外面初始化
+    for(;find_first_of(itt, string1.end(), string2.begin(), string2.end())!=string1.end();++itt){
+        ++cnt;
+        cout<<*itt<<endl;
+    }
+
+    cout<<"find:"<<cnt<<endl;
+
+    // find_first_of的本质是从输入的1的迭代器开始++到1的末尾，这期间若任何一次出现过2里面的任何一个元素，有就直接返回出现的首地址。否则返回1的末尾。
+    // 在这个例子里面，当从a开始迭代时，会碰到末尾的c，也算找到，所以一共出现4此。
 
     return 0;
 

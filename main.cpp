@@ -433,12 +433,40 @@ or a destructor,
  */
 
 
+/* 命名空间
+ 1 定义命名空间的时候不可以放在函数,类,其他命名空间内部,只能放在全局作用域 (::),或者该命名域内部定义。namespace name{}不能加分号
+ 2 特性1： 命名空间中定义的名字可以被命名空间中的其他成员直接访问, 不需要加：：，
+          并且如果函数名是加了：：声明的，那那些形参可以直接调用那个作用域里的成员。
+          cpp::A cpp::operator+(const A&), 形参不需要cpp::A
+          或者实参是某个类的实体或者指针/引用，那么在搜索函数时会一并搜索实参所在类的命名空间。getline(std::cin,string s), getline 会在std和string的命名空间里寻找。 A:: obj, f(obj) f还包括了定义A及其基类的命名空间中的函数。
+ 3 特性2： 命名空间可以不连续，实现接口和实现的分离 (文件间也可以分离),分离声明和定义。
+   .h 文件里：
+   namespace cpp{class A;}
+   .cpp 文件里
+   #include<cpp.h>
+   namespace cpp{ A defination}
+   .main 里面可以用别名
+   namespace alisas = cpp
+   alisas::A a
+ 
+ 4 当嵌套定义命名空间的时候，内部的函数会屏蔽外面的，外围要调用内层的必须 wai::nei::func
+ 5 特性3： 无名命名空间 namespace{}, 仅有效于当前的文件（类似于且优于static），作用域同于一个全局变量。如果头文件中定义了无名空间，那么每个文件会产生自己独立的局部实体。不需要::即可调用，
+
+ 7 using 声明每次可以注入一个特定的函数，作用域相当于using的作用域。using std::map
+   using 指示，命名空间内所有函数均被可见，作用域是整个using指示所在的上一层空间(注意和指示所在域之外的全局空间命名存在二义性冲突)。不应在头文件中使用，这样的话每个引用头文件的都会被迫注入该namespace里全部的函数。
+ 8 对于命名空间中的类，查找的顺序：成员，基类，外围作用域（需提前声明）。域名调用的顺序是查找的逆序，A::c1::f3() f3->c1->A
+
+
+
+*/
+
 template<typename T>  //模板声明，其中T为类型参数
 T max(T a,T b,T c) //定义一个通用函数，用T作虚拟的类型名
 {
+    //namespace hehe{
     if(b>a) a=b;
     if(c>a) a=c;
-    return a;
+    return a;//}
 }
 
 //i=max(i1,i2,i3); //调用模板函数，此时T被int取代
