@@ -811,7 +811,7 @@ void shuzuf(int (&a)[1]){
 
 //vector<int&> yinyong;  严重不可以
 
-int main(){
+int STL(){
 
     // thread
     std::thread t1(function_1); // t1 starts running
@@ -973,6 +973,14 @@ int main(){
     // shuzuf这个函数形参是对数组的一个引用， 必须指明大小 int(&a)[1]
     int at[]={1};
     shuzuf(at);
+
+    /* referecen 上的reference, pointer, 数组都是禁止的
+    int ar= 1;
+    int ae= 2;
+    int *&ak =ar;
+    int &[] = {ar,ae}
+     
+     */
     return 0;
 
 
